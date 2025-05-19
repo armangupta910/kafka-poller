@@ -21,7 +21,7 @@ public class KafkaConsumer {
 
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final AtomicInteger emptyPollCount = new AtomicInteger(0);
-    private static final int MAX_SLEEP_SECONDS = 2;
+    private static final int MAX_SLEEP_SECONDS = 5;
     private static int failedAttempts = 0;
     long lastSuccessfulOffset = -1;
     private Consumer<String, String> consumer;
@@ -32,11 +32,10 @@ public class KafkaConsumer {
         Thread thread = new Thread(() -> {
             consumer = consumerFactory.createConsumer(groupId, null, null);
             consumer.subscribe(Collections.singletonList(topic));
-            System.out.println("Susbcription to " + topic + " completed.");
             try {
                 while (running.get()) {
                     ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
-                    processRecords(records, topic);
+                    handleEmptyPoll();
                     if (!records.isEmpty()) {
                         processRecords(records, topic);
                         emptyPollCount.set(0);
@@ -49,7 +48,7 @@ public class KafkaConsumer {
             } catch (Exception e) {
                 //Handling the Exceptions here
             }
-        },  "KafkaConsumerThread-" + topic);
+        },  "KafkaConsumerPollingThread-" + topic);
         thread.start();
     }
 
@@ -95,7 +94,7 @@ public class KafkaConsumer {
         }
 
         else{
-            consumer.seek(tp, lastSuccessfulOffset+1);
+//            consumer.seek(tp, lastSuccessfulOffset+1);
             failedAttempts = 0;
         }
     }
@@ -106,7 +105,7 @@ public class KafkaConsumer {
         int sleepSeconds = Math.min(currentCount, MAX_SLEEP_SECONDS);
 
         System.out.println("Sleeping " + sleepSeconds + "s");
-        Thread.sleep(sleepSeconds * 500L);
+        Thread.sleep(sleepSeconds * 1000L);
     }
 
 }
